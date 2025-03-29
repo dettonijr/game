@@ -1,5 +1,3 @@
-use rand::prelude::IndexedRandom;
-
 pub const MAP_HEIGHT: usize = 50;
 pub const MAP_WIDTH: usize = 50;
 pub const TILE_SIZE: f32 = 32.0;
@@ -10,6 +8,9 @@ enum TileKind {
     Grass,
     Forest,
     Road,
+    Crossroad,
+    Roadturn,
+    Roadend,
 }
 
 use TileKind::*;
@@ -42,7 +43,7 @@ pub fn generate_map() -> Vec<Vec<usize>> {
 
     while let Some((x, y)) = get_lowest_entropy_tile(&possible_tiles) {
         // collapse one
-        collapse(&mut possible_tiles[x][y]);
+        collapse(&tile_indexes, &mut possible_tiles[x][y]);
 
         let neighbours = find_neighbours((x, y));
         let mut to_rearrange: Vec<(usize, usize)> = neighbours_to_vec(&neighbours);
@@ -65,11 +66,40 @@ pub fn generate_map() -> Vec<Vec<usize>> {
         .collect()
 }
 
-fn collapse(possible_tiles: &mut Vec<usize>) {
-    // TODO Add probability for each tile instead of pure random
-    let tile = possible_tiles.choose(&mut rand::rng());
-    if let Some(tile) = tile {
-        *possible_tiles = vec![*tile];
+fn collapse(
+    tile_indexes: &TileIndexes,
+    possible_tiles: &mut Vec<usize>) {
+    // map probability to each tile
+    let probabilities = possible_tiles.iter()
+        .map(|tile| tile_indexes.get(tile).unwrap().kind)
+        .map(|tile| match tile {
+            Water => 1.,
+            Grass => 1.,
+            Forest => 1.,
+            Road => 5.,
+            Crossroad => 0.0,
+            Roadturn => 1.0,
+            Roadend => 0.0,
+        })
+        .collect::<Vec<f32>>();
+
+    let sum: f32 = probabilities.iter().sum();
+
+    let mut random = rand::random_range(0.0..sum);
+
+    for (i, probability) in probabilities.iter().enumerate() {
+        random -= probability;
+        if random <= 0.0 {
+            *possible_tiles = vec![possible_tiles[i]];
+
+            // if picked roadend print for debug
+            let kind = tile_indexes.get(possible_tiles.first().unwrap()).unwrap().kind;
+            if kind == Roadend {
+                println!("Roadend picked {:?}", possible_tiles);
+            } 
+
+            return;
+        }
     }
 }
 
@@ -413,7 +443,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             32,
             Tile {
-                kind: Road,
+                kind: Roadturn,
                 top: (Grass, Grass),
                 bottom: (Road, Road),
                 left: (Grass, Grass),
@@ -423,7 +453,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             33,
             Tile {
-                kind: Road,
+                kind: Crossroad,
                 top: (Grass, Grass),
                 bottom: (Road, Road),
                 left: (Road, Road),
@@ -433,7 +463,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             34,
             Tile {
-                kind: Road,
+                kind: Roadturn,
                 top: (Grass, Grass),
                 bottom: (Road, Road),
                 left: (Road, Road),
@@ -443,27 +473,27 @@ fn make_tile_indexes() -> TileIndexes {
         (
             42,
             Tile {
-                kind: Road,
+                kind: Crossroad,
                 top: (Road, Road),
                 bottom: (Road, Road),
                 left: (Grass, Grass),
                 right: (Road, Road),
             },
         ),
-        //(
-        //    43,
-        //    Tile {
-        //        kind: Road,
-        //        top: (Road, Road),
-        //        bottom: (Road, Road),
-        //        left: (Road, Road),
-        //        right: (Road, Road),
-        //    },
-        //),
+        (
+            43,
+            Tile {
+                kind: Crossroad,
+                top: (Road, Road),
+                bottom: (Road, Road),
+                left: (Road, Road),
+                right: (Road, Road),
+            },
+        ),
         (
             44,
             Tile {
-                kind: Road,
+                kind: Crossroad,
                 top: (Road, Road),
                 bottom: (Road, Road),
                 left: (Road, Road),
@@ -473,7 +503,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             52,
             Tile {
-                kind: Road,
+                kind: Roadturn,
                 top: (Road, Road),
                 bottom: (Grass, Grass),
                 left: (Grass, Grass),
@@ -483,7 +513,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             53,
             Tile {
-                kind: Road,
+                kind: Crossroad,
                 top: (Road, Road),
                 bottom: (Grass, Grass),
                 left: (Road, Road),
@@ -493,7 +523,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             54,
             Tile {
-                kind: Road,
+                kind: Roadturn,
                 top: (Road, Road),
                 bottom: (Grass, Grass),
                 left: (Road, Road),
@@ -523,7 +553,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             45,
             Tile {
-                kind: Road,
+                kind: Roadend,
                 top: (Grass, Grass),
                 bottom: (Grass, Grass),
                 left: (Road, Road),
@@ -533,7 +563,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             46,
             Tile {
-                kind: Road,
+                kind: Roadend,
                 top: (Grass, Grass),
                 bottom: (Road, Road),
                 left: (Grass, Grass),
@@ -543,7 +573,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             55,
             Tile {
-                kind: Road,
+                kind: Roadend,
                 top: (Grass, Grass),
                 bottom: (Grass, Grass),
                 left: (Grass, Grass),
@@ -553,7 +583,7 @@ fn make_tile_indexes() -> TileIndexes {
         (
             56,
             Tile {
-                kind: Road,
+                kind: Roadend,
                 top: (Road, Road),
                 bottom: (Grass, Grass),
                 left: (Grass, Grass),

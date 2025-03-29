@@ -121,7 +121,7 @@ fn mouse_coordinates(
     {
         tile_sprites
             .iter_mut()
-            .filter(|(sprite, pos)| {
+            .filter(|(_sprite, pos)| {
                 pos.x as f32 * TILE_SIZE <= world_position.x
                     && world_position.x < (pos.x as f32 + 1.0) * TILE_SIZE
                     && pos.y as f32 * TILE_SIZE <= world_position.y
